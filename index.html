@@ -85,6 +85,14 @@
     @media (max-width:780px){ .form-grid{grid-template-columns:1fr} }
     .modal-footer{display:flex; gap:10px; justify-content:flex-end; padding:12px 16px; border-top:1px solid #1f2937}
     .msg{font-size:12px; color:#93a4bd; padding:6px 2px; min-height:18px}
+
+    /* Sites (chips) */
+    .sites-wrap{grid-column:1/-1}
+    .sites-tools{display:flex; gap:8px; align-items:center; margin-bottom:8px}
+    .chips{display:flex; flex-wrap:wrap; gap:8px}
+    .chip{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #1f2937; border-radius:999px; background:#0e162b; cursor:pointer; user-select:none}
+    .chip.selected{outline:2px solid #3b82f6}
+    .chip .x{border:none; background:transparent; color:#94a3b8; cursor:pointer; font-size:14px; line-height:1}
   </style>
 </head>
 <body>
@@ -116,7 +124,7 @@
         <div class="grid">
           <div>
             <label for="site">Local de entrega</label>
-            <input list="sites" id="site" name="site" type="text" placeholder="Ex.: Armazém Aveiro" />
+            <input list="sites" id="site" name="site" type="text" placeholder="Escolhe um dos deste cliente" />
             <datalist id="sites"></datalist>
           </div>
           <div>
@@ -177,9 +185,14 @@
                 <label for="cmName">Nome do cliente</label>
                 <input id="cmName" type="text" placeholder="Ex.: Café Avenida" />
               </div>
-              <div>
-                <label for="cmSite">Local de entrega (opcional)</label>
-                <input id="cmSite" list="sites" type="text" placeholder="Ex.: Armazém Aveiro" />
+              <div class="sites-wrap">
+                <label>Locais de entrega deste cliente</label>
+                <div class="sites-tools">
+                  <input id="cmSiteInput" type="text" placeholder="Ex.: Armazém Aveiro" style="flex:1" />
+                  <button class="btn" id="cmAddSite">Adicionar</button>
+                </div>
+                <div class="chips" id="cmSites"></div>
+                <div class="msg">Clique num local para o selecionar. Use × para remover.</div>
               </div>
               <div style="grid-column:1/-1" class="msg" id="cmMsg"></div>
             </div>
@@ -207,7 +220,13 @@
       'Alface','Rúcula','Espinafre','Couve Coração','Couve Galega','Brócolo','Courgette','Abóbora','Nabo','Rabanete',
       'Melão','Melancia','Abacate','Melancia mini','Feijão verde','Ervilha','Milho doce'
     ];
-    const CLIENTS_SEED = ['Rest. Baía','Talho Central','Mercearia da Vila','Café Avenida','Hotel Costa Verde'];
+    const CLIENTS_SEED = [
+      { name:'Rest. Baía',  sites:['Sala Principal','Cozinha Central'] },
+      { name:'Talho Central', sites:['Armazém Rua B'] },
+      { name:'Mercearia da Vila', sites:['Loja Centro'] },
+      { name:'Café Avenida', sites:['Loja Norte','Loja Sul'] },
+      { name:'Hotel Costa Verde', sites:['Receção','Cozinha'] }
+    ];
     const SITES_SEED = ['Armazém Aveiro','Loja Vagos','Mercado Municipal Aveiro','Hotel Norte','Cozinha Central'];
 
     // ======== Utilidades ========
@@ -219,7 +238,7 @@
       const hh = pad(d.getHours()); const mi = pad(d.getMinutes()); const ss = pad(d.getSeconds());
       return `E-${y}${mm}${dd}-${hh}${mi}${ss}`;
     };
-    const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const norm = (s) => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
     // ======== DOM refs ========
     const orderNoEl = document.getElementById('orderNo');
@@ -241,30 +260,54 @@
     const cmList = document.getElementById('cmList');
     const cmNew = document.getElementById('cmNew');
     const cmName = document.getElementById('cmName');
-    const cmSite = document.getElementById('cmSite');
+    const cmSiteInput = document.getElementById('cmSiteInput');
+    const cmSitesDiv = document.getElementById('cmSites');
     const cmMsg = document.getElementById('cmMsg');
     const cmSave = document.getElementById('cmSave');
     const cmUse = document.getElementById('cmUse');
+    const cmAddSite = document.getElementById('cmAddSite');
 
     // ======== Datalists ========
     const clientsDL = document.getElementById('clients');
     const sitesDL = document.getElementById('sites');
 
-    // ======== Clientes (localStorage) ========
-    const LS_CLIENTS_KEY = 'clientRecords_v1';
+    // ======== Clientes (localStorage com migração) ========
+    const LS_CLIENTS_KEY = 'clientRecords_v2';
+
+    function migrateIfNeeded(raw){
+      try{
+        const arr = JSON.parse(raw);
+        if(!Array.isArray(arr)) return null;
+        // se tiver objetos com {name, site} -> migrar para {name, sites:[]}
+        const migrated = arr.map(c=>{
+          if(c && typeof c==='object'){
+            if(Array.isArray(c.sites)) return { name: c.name, sites: c.sites.filter(Boolean) };
+            if(c.site) return { name: c.name, sites: [c.site] };
+            if(typeof c === 'string') return { name: c, sites: [] };
+            return { name: c.name||'', sites: [] };
+          }
+          if(typeof c==='string') return { name: c, sites: [] };
+          return { name:'', sites:[] };
+        });
+        return migrated;
+      }catch{ return null; }
+    }
 
     function loadClientRecords(){
       try{
         const raw = localStorage.getItem(LS_CLIENTS_KEY);
         if(raw){
-          return JSON.parse(raw);
-        } else {
-          // seed com nomes básicos
-          const seeded = CLIENTS_SEED.map(n=>({name:n, site:''}));
-          localStorage.setItem(LS_CLIENTS_KEY, JSON.stringify(seeded));
-          return seeded;
+          const parsed = JSON.parse(raw);
+          // já v2?
+          if(Array.isArray(parsed) && parsed.length && parsed[0] && Array.isArray(parsed[0].sites)) return parsed;
+          // não v2: tentar migrar
+          const migrated = migrateIfNeeded(raw);
+          if(migrated){ localStorage.setItem(LS_CLIENTS_KEY, JSON.stringify(migrated)); return migrated; }
         }
-      }catch{ return CLIENTS_SEED.map(n=>({name:n, site:''})); }
+        // seed inicial
+        localStorage.setItem(LS_CLIENTS_KEY, JSON.stringify(CLIENTS_SEED));
+        return CLIENTS_SEED;
+      }catch{ return CLIENTS_SEED; }
     }
 
     function saveClientRecords(arr){
@@ -277,31 +320,44 @@
       list.forEach(c=>{ const o = document.createElement('option'); o.value = c.name; clientsDL.appendChild(o); });
     }
 
-    function ensureSitesSeed(){
-      // Preenche sites datalist com seed + sites de clientes
-      const list = loadClientRecords();
+    function allSitesUnion(){
       const set = new Set([...SITES_SEED]);
-      list.forEach(c=>{ if(c.site) set.add(c.site); });
+      loadClientRecords().forEach(c=> (c.sites||[]).forEach(s=> set.add(s)) );
+      return Array.from(set);
+    }
+
+    function repopulateSitesForClient(name){
+      const list = loadClientRecords();
+      const found = list.find(c => norm(c.name) === norm(name));
+      const sites = found ? (found.sites||[]) : allSitesUnion();
       sitesDL.innerHTML = '';
-      Array.from(set).forEach(s=>{ const o = document.createElement('option'); o.value = s; sitesDL.appendChild(o); });
+      sites.forEach(s=>{ const o=document.createElement('option'); o.value=s; sitesDL.appendChild(o); });
+      // se site atual não pertence ao cliente selecionado, limpa
+      if(found && sitesEl.value && !sites.includes(sitesEl.value)) sitesEl.value = '';
+    }
+
+    function getClientIndexByName(name){
+      const list = loadClientRecords();
+      const nk = norm(name);
+      return list.findIndex(c => norm(c.name) === nk);
     }
 
     // ======== Modal logic ========
-    let selectedIndex = -1; // índice da lista
+    let selectedIndex = -1; // índice da lista de clientes no modal
+    let cmSites = []; // array de sites do cliente em edição
+    let selectedSiteIdx = -1; // site selecionado para aplicar
 
     function openClientsModal(){
       modal.style.display = 'block'; modal.setAttribute('aria-hidden','false');
-      renderClientList();
       cmSearch.value = ''; cmMsg.textContent='';
-      cmName.value = clientEl.value || '';
-      cmSite.value = sitesEl.value || '';
+      // se já tens cliente escrito, pré-seleciona
+      const idx = getClientIndexByName(clientEl.value.trim());
+      if(idx !== -1){ selectClient(idx); } else { newClient(); }
+      renderClientList();
       setTimeout(()=> cmSearch.focus(), 10);
       document.addEventListener('keydown', escCloser);
     }
-    function closeClientsModal(){
-      modal.style.display = 'none'; modal.setAttribute('aria-hidden','true');
-      document.removeEventListener('keydown', escCloser);
-    }
+    function closeClientsModal(){ modal.style.display = 'none'; modal.setAttribute('aria-hidden','true'); document.removeEventListener('keydown', escCloser); }
     function escCloser(e){ if(e.key==='Escape') closeClientsModal(); }
 
     function renderClientList(){
@@ -309,63 +365,69 @@
       const list = loadClientRecords();
       cmList.innerHTML = '';
       list.forEach((c,idx)=>{
-        if(q && !norm(c.name).includes(q) && !(c.site && norm(c.site).includes(q))) return;
+        if(q && !norm(c.name).includes(q) && !(c.sites||[]).some(s=> norm(s).includes(q))) return;
         const div = document.createElement('div');
         div.className = 'list-item' + (idx===selectedIndex ? ' active':'' );
-        div.innerHTML = `<div style="font-weight:600">${c.name}</div><div style="font-size:12px;color:#93a4bd">${c.site || '—'}</div>`;
+        const subtitle = (c.sites&&c.sites.length) ? c.sites.join(' • ') : '—';
+        div.innerHTML = `<div style="font-weight:600">${c.name}</div><div style="font-size:12px;color:#93a4bd">${subtitle}</div>`;
         div.addEventListener('click', ()=> selectClient(idx));
         cmList.appendChild(div);
       });
-      if(!cmList.children.length){
-        const empty = document.createElement('div'); empty.className='list-item'; empty.textContent = 'Sem resultados'; cmList.appendChild(empty);
-      }
+      if(!cmList.children.length){ const empty=document.createElement('div'); empty.className='list-item'; empty.textContent='Sem resultados'; cmList.appendChild(empty); }
+    }
+
+    function renderSitesChips(){
+      cmSitesDiv.innerHTML = '';
+      cmSites.forEach((s, i)=>{
+        const chip = document.createElement('span'); chip.className = 'chip' + (i===selectedSiteIdx?' selected':'');
+        const txt = document.createElement('span'); txt.textContent = s; chip.appendChild(txt);
+        chip.addEventListener('click', ()=>{ selectedSiteIdx = (selectedSiteIdx===i? -1 : i); renderSitesChips(); });
+        const x = document.createElement('button'); x.className='x'; x.title='Remover'; x.textContent='×'; x.addEventListener('click', (e)=>{ e.stopPropagation(); cmSites.splice(i,1); if(selectedSiteIdx===i) selectedSiteIdx=-1; else if(selectedSiteIdx>i) selectedSiteIdx--; renderSitesChips(); }); chip.appendChild(x);
+        cmSitesDiv.appendChild(chip);
+      });
     }
 
     function selectClient(idx){
       const list = loadClientRecords();
       const c = list[idx]; if(!c) return;
-      selectedIndex = idx;
-      cmName.value = c.name; cmSite.value = c.site || '';
-      cmMsg.textContent = 'Cliente carregado. Faz alterações e Guarda para editar.';
-      renderClientList();
+      selectedIndex = idx; cmName.value = c.name; cmSites = [...(c.sites||[])]; selectedSiteIdx = -1;
+      cmMsg.textContent = 'Cliente carregado. Podes editar nome e locais.';
+      renderClientList(); renderSitesChips();
     }
 
     function newClient(){
-      selectedIndex = -1; cmName.value = ''; cmSite.value = ''; cmMsg.textContent = 'A criar novo cliente…';
-      cmName.focus();
+      selectedIndex = -1; cmName.value = ''; cmSites = []; selectedSiteIdx = -1; cmMsg.textContent = 'A criar novo cliente…'; renderSitesChips();
+    }
+
+    function addSite(){
+      const s = cmSiteInput.value.trim(); if(!s) return;
+      const exists = cmSites.some(x => norm(x)===norm(s));
+      if(exists){ cmMsg.textContent='Esse local já existe neste cliente.'; return; }
+      cmSites.push(s); cmSiteInput.value=''; cmMsg.textContent='Local adicionado.'; renderSitesChips();
     }
 
     function saveClient(){
-      const name = cmName.value.trim();
-      const site = cmSite.value.trim();
-      if(!name){ cmMsg.textContent = 'Indica o nome do cliente.'; return; }
+      const name = cmName.value.trim(); if(!name){ cmMsg.textContent='Indica o nome do cliente.'; return; }
       let list = loadClientRecords();
-      // verificar duplicados (case-insensitive) exceto o mesmo índice
-      const nameKey = norm(name);
-      const duplicate = list.findIndex((c,i)=> norm(c.name)===nameKey && i!==selectedIndex);
-      if(duplicate !== -1){ cmMsg.textContent = 'Já existe um cliente com esse nome.'; return; }
-
-      if(selectedIndex === -1){
-        list.push({ name, site });
-        cmMsg.textContent = 'Cliente criado.';
-      } else {
-        list[selectedIndex] = { name, site };
-        cmMsg.textContent = 'Cliente atualizado.';
-      }
+      const dupe = list.findIndex((c,i)=> norm(c.name)===norm(name) && i!==selectedIndex);
+      if(dupe!==-1){ cmMsg.textContent='Já existe um cliente com esse nome.'; return; }
+      if(selectedIndex===-1){ list.push({ name, sites:[...cmSites] }); cmMsg.textContent='Cliente criado.'; selectedIndex = list.length-1; }
+      else { list[selectedIndex] = { name, sites:[...cmSites] }; cmMsg.textContent='Cliente atualizado.'; }
       saveClientRecords(list);
       syncClientsToDatalist();
-      ensureSitesSeed();
+      // se o formulário usa este cliente, atualiza datalist de sites
+      if(norm(clientEl.value)===norm(name)) repopulateSitesForClient(name);
       renderClientList();
     }
 
     function applyToForm(){
-      clientEl.value = cmName.value.trim();
-      if(cmSite.value.trim()) sitesEl.value = cmSite.value.trim();
-      closeClientsModal();
-      clientEl.focus();
+      const name = cmName.value.trim(); if(!name){ cmMsg.textContent='Indica o nome do cliente.'; return; }
+      clientEl.value = name; repopulateSitesForClient(name);
+      if(selectedSiteIdx>=0) sitesEl.value = cmSites[selectedSiteIdx];
+      closeClientsModal(); clientEl.focus();
     }
 
-    // ======== Autocomplete (portal para <body>, z-index alto) ========
+    // ======== Autocomplete Artigos ========
     function makeAutocomplete(input, options){
       input.setAttribute('autocomplete','off');
       const list = document.createElement('div'); list.className = 'ac-list'; document.body.appendChild(list);
@@ -429,7 +491,7 @@
     function boot(){
       orderNoEl.value = generateOrderNumber(); deliveryDateEl.value = todayISO();
       // seed datalists
-      syncClientsToDatalist(); ensureSitesSeed();
+      syncClientsToDatalist(); repopulateSitesForClient(clientEl.value);
       const first = addRow(); first.artigo.focus();
     }
 
@@ -442,7 +504,7 @@
     });
 
     clearBtn.addEventListener('click', () => {
-      if (!confirm('Limpar o formulário?')) return; orderNoEl.value = generateOrderNumber(); deliveryDateEl.value = todayISO(); descEl.value = ''; clientEl.value = ''; sitesEl.value = ''; tbody.innerHTML = ''; const first = addRow(); first.artigo.focus();
+      if (!confirm('Limpar o formulário?')) return; orderNoEl.value = generateOrderNumber(); deliveryDateEl.value = todayISO(); descEl.value = ''; clientEl.value = ''; sitesEl.value = ''; tbody.innerHTML = ''; const first = addRow(); first.artigo.focus(); repopulateSitesForClient('');
     });
 
     document.addEventListener('keydown', (e)=>{ if((e.ctrlKey || e.metaKey) && e.key==='Enter'){ e.preventDefault(); form.requestSubmit(); } });
@@ -458,6 +520,13 @@
     cmNew.addEventListener('click', newClient);
     cmSave.addEventListener('click', saveClient);
     cmUse.addEventListener('click', applyToForm);
+    cmAddSite.addEventListener('click', addSite);
+    cmSiteInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); addSite(); }});
+
+    // Form: quando escolhes cliente, limitar locais a esse cliente
+    function onClientChange(){ repopulateSitesForClient(clientEl.value.trim()); }
+    clientEl.addEventListener('input', onClientChange);
+    clientEl.addEventListener('change', onClientChange);
 
     // arrancar
     boot();
