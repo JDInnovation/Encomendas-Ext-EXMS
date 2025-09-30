@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Encomenda ao Fornecedor — Fruta & Hortícolas</title>
+  <style>
+    :root{
+      --bg:#0b1020; --card:#10172a; --muted:#8B93A7; --text:#E6EAF5; --accent:#60a5fa; --accent-2:#34d399; --danger:#ef4444;
+      --ring: rgba(96,165,250,.45);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;}
+    body{
+      margin:0; font:500 15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,"Helvetica Neue",Arial;
+      background:
+        radial-gradient(900px 500px at -10% -10%, rgba(167,139,250,.10), transparent 60%),
+        radial-gradient(900px 500px at 110% 10%, rgba(34,211,238,.08), transparent 60%),
+        var(--bg);
+      color:var(--text);
+    }
+    .container{max-width:1100px;margin:24px auto;padding:0 16px}
+    .card{background:linear-gradient(180deg,#0f1422,#0b1120);border:1px solid #1f2937;border-radius:18px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+    header{padding:18px 22px;border-bottom:1px solid #1f2937;display:flex;align-items:center;justify-content:space-between;gap:16px}
+    header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+    header .badge{font-size:12px;color:#cbd5e1;background:#0b1226;border:1px solid #1e293b;padding:6px 10px;border-radius:999px}
+
+    form{padding:20px;display:grid;gap:18px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+    @media (max-width:900px){.grid,.grid-3{grid-template-columns:1fr}}
+
+    label{display:block;font-size:12px;color:#aab3c5;margin:0 0 6px 2px}
+    input[type="text"], input[type="date"], input[type="number"], textarea, select{
+      width:100%; background:#0c1427; color:var(--text); border:1px solid #253248; border-radius:12px;
+      padding:12px 12px; outline:0; transition:.2s border-color, .2s box-shadow;
+    }
+    input[readonly]{opacity:.9}
+    input:focus, textarea:focus, select:focus{border-color:#3b82f6; box-shadow:0 0 0 4px var(--ring)}
+    textarea{min-height:90px; resize:vertical}
+
+    .table-wrap{border:1px solid #1f2937;border-radius:14px;overflow:hidden}
+    table{width:100%; border-collapse:collapse; background:#0c1427}
+    thead th{background:#0e162b;color:#cbd5e1;text-align:left;padding:12px;border-bottom:1px solid #1f2937;font-size:13px}
+    tbody td{padding:8px 10px;border-bottom:1px solid #162036}
+    tbody tr:last-child td{border-bottom:none}
+    td.actions{width:64px;text-align:center}
+
+    .btn{appearance:none;border:1px solid #1f2937;background:#0e162b;color:#e5e7eb;border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer}
+    .btn:hover{border-color:#334155}
+    .btn.primary{background:linear-gradient(180deg,#1d4ed8,#1e40af);border-color:#1d4ed8}
+    .btn.success{background:linear-gradient(180deg,#059669,#047857);border-color:#059669}
+    .btn.ghost{background:transparent}
+    .btn.danger{background:linear-gradient(180deg,#dc2626,#b91c1c);border-color:#dc2626}
+
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .right{margin-left:auto}
+    .hint{font-size:12px;color:#93a4bd}
+
+    footer{padding:14px 18px;border-top:1px solid #1f2937;color:#93a4bd;font-size:12px}
+    .sr{position:absolute;width:1px;height:1px;margin:-1px;border:0;padding:0;clip:rect(0 0 0 0);overflow:hidden}
+
+    /* Autocomplete dropdown (fora do fluxo, sempre por cima) */
+    .ac-list{position:fixed; z-index:99999; left:0; top:0; display:none; margin-top:0; background:#0b1326; border:1px solid #1f2937; border-radius:12px; overflow:hidden; box-shadow:0 8px 30px rgba(0,0,0,.45); max-height:320px; overflow-y:auto}
+    .ac-item{padding:10px 12px; cursor:pointer; border-bottom:1px solid #131d35; font-size:14px}
+    .ac-item:last-child{border-bottom:none}
+    .ac-item[aria-selected="true"], .ac-item:hover{background:#142142}
+    .ac-empty{padding:10px 12px; color:#93a4bd}
+
+    /* ===== Modal Clientes ===== */
+    .modal-backdrop{position:fixed; inset:0; background:rgba(9,12,22,.55); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); display:none; z-index:100000}
+    .modal-card{position:relative; width:min(940px, 96vw); margin:8vh auto; background:linear-gradient(180deg,#0f1422,#0b1120); border:1px solid #1f2937; border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.5)}
+    .modal-header{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #1f2937}
+    .modal-header h3{margin:0; font-size:16px}
+    .modal-body{padding:16px}
+    .modal-grid{display:grid; grid-template-columns:320px 1fr; gap:14px}
+    @media (max-width:780px){ .modal-grid{grid-template-columns:1fr} }
+    .list-card{border:1px solid #1f2937; border-radius:12px; overflow:hidden}
+    .list-toolbar{display:flex; gap:8px; padding:10px; border-bottom:1px solid #1f2937}
+    .list{max-height:360px; overflow:auto}
+    .list-item{padding:10px 12px; border-bottom:1px solid #162036; cursor:pointer}
+    .list-item:hover{background:#0f1a33}
+    .list-item.active{background:#122041}
+    .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+    @media (max-width:780px){ .form-grid{grid-template-columns:1fr} }
+    .modal-footer{display:flex; gap:10px; justify-content:flex-end; padding:12px 16px; border-top:1px solid #1f2937}
+    .msg{font-size:12px; color:#93a4bd; padding:6px 2px; min-height:18px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <header>
+        <h1>Pedido ao Fornecedor — Fruta & Hortícolas</h1>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button type="button" class="btn" id="clientsBtn">👤 Clientes</button>
+          <div class="badge">Ferramenta interna • 1 ficheiro</div>
+        </div>
+      </header>
+      <form id="orderForm">
+        <div class="grid-3">
+          <div>
+            <label for="orderNo">Nº Encomenda</label>
+            <input id="orderNo" name="orderNo" type="text" readonly />
+          </div>
+          <div>
+            <label for="deliveryDate">Data de entrega</label>
+            <input id="deliveryDate" name="deliveryDate" type="date" required />
+          </div>
+          <div>
+            <label for="client">Cliente</label>
+            <input list="clients" id="client" name="client" type="text" placeholder="Escolhe ou escreve" />
+            <datalist id="clients"></datalist>
+          </div>
+        </div>
+        <div class="grid">
+          <div>
+            <label for="site">Local de entrega</label>
+            <input list="sites" id="site" name="site" type="text" placeholder="Ex.: Armazém Aveiro" />
+            <datalist id="sites"></datalist>
+          </div>
+          <div>
+            <label for="description">Notas/Observações</label>
+            <input id="description" name="description" type="text" placeholder="Janelas de entrega, referências do cliente, etc." />
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table id="itemsTable">
+            <thead>
+              <tr>
+                <th style="width:50%">Artigo</th>
+                <th style="width:20%">Quantidade</th>
+                <th style="width:20%">Unidade</th>
+                <th style="width:10%" class="actions">Remover</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- linhas de artigos inseridas por JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="toolbar">
+          <button type="button" class="btn" id="addRowBtn">+ Adicionar artigo</button>
+          <span class="hint">Fluxo rápido: escreve o artigo → Enter aceita → vai para Quantidade → Enter para Unidade → Enter cria nova linha.</span>
+          <span class="right"></span>
+          <button type="button" class="btn ghost" id="clearBtn" title="Limpar formulário">Limpar</button>
+          <button type="submit" class="btn primary" id="pdfBtn" title="Ctrl+Enter">Gerar PDF</button>
+        </div>
+      </form>
+      <footer>
+        Atalhos: <strong>Ctrl+Enter</strong> gera o PDF. O nº de encomenda é único no tempo.
+      </footer>
+    </div>
+  </div>
+
+  <!-- ===== Modal Clientes ===== -->
+  <div class="modal-backdrop" id="clientsModal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Gestão de Clientes</h3>
+        <button class="btn ghost" id="cmClose">Fechar ×</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-grid">
+          <div class="list-card">
+            <div class="list-toolbar">
+              <input id="cmSearch" type="text" placeholder="Procurar cliente…" style="flex:1" />
+              <button class="btn" id="cmNew">Novo</button>
+            </div>
+            <div class="list" id="cmList"></div>
+          </div>
+          <div>
+            <div class="form-grid">
+              <div>
+                <label for="cmName">Nome do cliente</label>
+                <input id="cmName" type="text" placeholder="Ex.: Café Avenida" />
+              </div>
+              <div>
+                <label for="cmSite">Local de entrega (opcional)</label>
+                <input id="cmSite" list="sites" type="text" placeholder="Ex.: Armazém Aveiro" />
+              </div>
+              <div style="grid-column:1/-1" class="msg" id="cmMsg"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="cmUse">Aplicar no formulário</button>
+        <span style="flex:1"></span>
+        <button class="btn success" id="cmSave">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- jsPDF + AutoTable (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+
+  <script>
+    // ======== Dados base (edita à vontade) ========
+    const UNITS = ['Kg','Caixa','Molho','Unidade'];
+    const ARTICLES = [
+      'Maçã Golden','Maçã Royal Gala','Pera Rocha','Banana','Laranja','Limão','Mandarina','Uva','Kiwi','Morangos',
+      'Batata nova','Batata branca','Cebola','Alho','Cenoura','Tomate cacho','Tomate chucha','Pepino','Pimento verde','Pimento vermelho',
+      'Alface','Rúcula','Espinafre','Couve Coração','Couve Galega','Brócolo','Courgette','Abóbora','Nabo','Rabanete',
+      'Melão','Melancia','Abacate','Melancia mini','Feijão verde','Ervilha','Milho doce'
+    ];
+    const CLIENTS_SEED = ['Rest. Baía','Talho Central','Mercearia da Vila','Café Avenida','Hotel Costa Verde'];
+    const SITES_SEED = ['Armazém Aveiro','Loja Vagos','Mercado Municipal Aveiro','Hotel Norte','Cozinha Central'];
+
+    // ======== Utilidades ========
+    const pad = (n) => (n < 10 ? '0' + n : '' + n);
+    const todayISO = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); };
+    const fmtDatePT = (value) => { if (!value) return ''; const [y,m,d] = value.split('-'); return `${d}/${m}/${y}`; };
+    const generateOrderNumber = () => {
+      const d = new Date(); const y = d.getFullYear(); const mm = pad(d.getMonth()+1); const dd = pad(d.getDate());
+      const hh = pad(d.getHours()); const mi = pad(d.getMinutes()); const ss = pad(d.getSeconds());
+      return `E-${y}${mm}${dd}-${hh}${mi}${ss}`;
+    };
+    const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+    // ======== DOM refs ========
+    const orderNoEl = document.getElementById('orderNo');
+    const deliveryDateEl = document.getElementById('deliveryDate');
+    const clientEl = document.getElementById('client');
+    const sitesEl = document.getElementById('site');
+    const descEl = document.getElementById('description');
+    const table = document.getElementById('itemsTable');
+    const tbody = table.querySelector('tbody');
+    const addRowBtn = document.getElementById('addRowBtn');
+    const form = document.getElementById('orderForm');
+    const clearBtn = document.getElementById('clearBtn');
+
+    // Modal refs
+    const clientsBtn = document.getElementById('clientsBtn');
+    const modal = document.getElementById('clientsModal');
+    const cmClose = document.getElementById('cmClose');
+    const cmSearch = document.getElementById('cmSearch');
+    const cmList = document.getElementById('cmList');
+    const cmNew = document.getElementById('cmNew');
+    const cmName = document.getElementById('cmName');
+    const cmSite = document.getElementById('cmSite');
+    const cmMsg = document.getElementById('cmMsg');
+    const cmSave = document.getElementById('cmSave');
+    const cmUse = document.getElementById('cmUse');
+
+    // ======== Datalists ========
+    const clientsDL = document.getElementById('clients');
+    const sitesDL = document.getElementById('sites');
+
+    // ======== Clientes (localStorage) ========
+    const LS_CLIENTS_KEY = 'clientRecords_v1';
+
+    function loadClientRecords(){
+      try{
+        const raw = localStorage.getItem(LS_CLIENTS_KEY);
+        if(raw){
+          return JSON.parse(raw);
+        } else {
+          // seed com nomes básicos
+          const seeded = CLIENTS_SEED.map(n=>({name:n, site:''}));
+          localStorage.setItem(LS_CLIENTS_KEY, JSON.stringify(seeded));
+          return seeded;
+        }
+      }catch{ return CLIENTS_SEED.map(n=>({name:n, site:''})); }
+    }
+
+    function saveClientRecords(arr){
+      try{ localStorage.setItem(LS_CLIENTS_KEY, JSON.stringify(arr)); }catch{}
+    }
+
+    function syncClientsToDatalist(){
+      const list = loadClientRecords();
+      clientsDL.innerHTML = '';
+      list.forEach(c=>{ const o = document.createElement('option'); o.value = c.name; clientsDL.appendChild(o); });
+    }
+
+    function ensureSitesSeed(){
+      // Preenche sites datalist com seed + sites de clientes
+      const list = loadClientRecords();
+      const set = new Set([...SITES_SEED]);
+      list.forEach(c=>{ if(c.site) set.add(c.site); });
+      sitesDL.innerHTML = '';
+      Array.from(set).forEach(s=>{ const o = document.createElement('option'); o.value = s; sitesDL.appendChild(o); });
+    }
+
+    // ======== Modal logic ========
+    let selectedIndex = -1; // índice da lista
+
+    function openClientsModal(){
+      modal.style.display = 'block'; modal.setAttribute('aria-hidden','false');
+      renderClientList();
+      cmSearch.value = ''; cmMsg.textContent='';
+      cmName.value = clientEl.value || '';
+      cmSite.value = sitesEl.value || '';
+      setTimeout(()=> cmSearch.focus(), 10);
+      document.addEventListener('keydown', escCloser);
+    }
+    function closeClientsModal(){
+      modal.style.display = 'none'; modal.setAttribute('aria-hidden','true');
+      document.removeEventListener('keydown', escCloser);
+    }
+    function escCloser(e){ if(e.key==='Escape') closeClientsModal(); }
+
+    function renderClientList(){
+      const q = norm(cmSearch.value.trim());
+      const list = loadClientRecords();
+      cmList.innerHTML = '';
+      list.forEach((c,idx)=>{
+        if(q && !norm(c.name).includes(q) && !(c.site && norm(c.site).includes(q))) return;
+        const div = document.createElement('div');
+        div.className = 'list-item' + (idx===selectedIndex ? ' active':'' );
+        div.innerHTML = `<div style="font-weight:600">${c.name}</div><div style="font-size:12px;color:#93a4bd">${c.site || '—'}</div>`;
+        div.addEventListener('click', ()=> selectClient(idx));
+        cmList.appendChild(div);
+      });
+      if(!cmList.children.length){
+        const empty = document.createElement('div'); empty.className='list-item'; empty.textContent = 'Sem resultados'; cmList.appendChild(empty);
+      }
+    }
+
+    function selectClient(idx){
+      const list = loadClientRecords();
+      const c = list[idx]; if(!c) return;
+      selectedIndex = idx;
+      cmName.value = c.name; cmSite.value = c.site || '';
+      cmMsg.textContent = 'Cliente carregado. Faz alterações e Guarda para editar.';
+      renderClientList();
+    }
+
+    function newClient(){
+      selectedIndex = -1; cmName.value = ''; cmSite.value = ''; cmMsg.textContent = 'A criar novo cliente…';
+      cmName.focus();
+    }
+
+    function saveClient(){
+      const name = cmName.value.trim();
+      const site = cmSite.value.trim();
+      if(!name){ cmMsg.textContent = 'Indica o nome do cliente.'; return; }
+      let list = loadClientRecords();
+      // verificar duplicados (case-insensitive) exceto o mesmo índice
+      const nameKey = norm(name);
+      const duplicate = list.findIndex((c,i)=> norm(c.name)===nameKey && i!==selectedIndex);
+      if(duplicate !== -1){ cmMsg.textContent = 'Já existe um cliente com esse nome.'; return; }
+
+      if(selectedIndex === -1){
+        list.push({ name, site });
+        cmMsg.textContent = 'Cliente criado.';
+      } else {
+        list[selectedIndex] = { name, site };
+        cmMsg.textContent = 'Cliente atualizado.';
+      }
+      saveClientRecords(list);
+      syncClientsToDatalist();
+      ensureSitesSeed();
+      renderClientList();
+    }
+
+    function applyToForm(){
+      clientEl.value = cmName.value.trim();
+      if(cmSite.value.trim()) sitesEl.value = cmSite.value.trim();
+      closeClientsModal();
+      clientEl.focus();
+    }
+
+    // ======== Autocomplete (portal para <body>, z-index alto) ========
+    function makeAutocomplete(input, options){
+      input.setAttribute('autocomplete','off');
+      const list = document.createElement('div'); list.className = 'ac-list'; document.body.appendChild(list);
+      let index = -1;
+      function positionList(){ const r = input.getBoundingClientRect(); list.style.width = r.width + 'px'; list.style.left = (r.left + window.scrollX) + 'px'; list.style.top = (r.bottom + window.scrollY + 6) + 'px'; }
+      function render(){ const q = norm(input.value.trim()); list.innerHTML = ''; index = -1; if(!q){ list.style.display='none'; return; } const filtered = options.filter(o => norm(o).includes(q)).slice(0,12); if(filtered.length===0){ const empty = document.createElement('div'); empty.className='ac-empty'; empty.textContent='Sem sugestões'; list.appendChild(empty);} else { filtered.forEach((text,i)=>{ const item = document.createElement('div'); item.className='ac-item'; item.textContent=text; item.setAttribute('role','option'); item.setAttribute('aria-selected','false'); item.addEventListener('mousedown', (e)=>{ e.preventDefault(); choose(i, filtered); }); list.appendChild(item); }); } positionList(); list.style.display='block'; }
+      function choose(i, arr){ const filtered = arr || Array.from(list.querySelectorAll('.ac-item')).map(n=>n.textContent); const val = filtered[i]; if(val){ input.value = val; } list.style.display='none'; input.dispatchEvent(new CustomEvent('ac-chosen')); }
+      function move(delta){ const nodes = list.querySelectorAll('.ac-item'); if(!nodes.length) return; index = (index + delta + nodes.length) % nodes.length; nodes.forEach((n,idx)=> n.setAttribute('aria-selected', idx===index ? 'true':'false')); }
+      function onScroll(){ if(list.style.display==='block') positionList(); }
+      input.addEventListener('input', render); input.addEventListener('focus', render);
+      input.addEventListener('keydown', (e)=>{ if(list.style.display==='block'){ if(e.key==='ArrowDown'){ e.preventDefault(); move(1); } else if(e.key==='ArrowUp'){ e.preventDefault(); move(-1); } else if(e.key==='Enter'){ e.preventDefault(); if(index>=0) choose(index); else { list.style.display='none'; input.dispatchEvent(new CustomEvent('ac-chosen')); } } else if(e.key==='Escape'){ list.style.display='none'; } } else { if(e.key==='Enter'){ e.preventDefault(); input.dispatchEvent(new CustomEvent('ac-chosen')); } } });
+      input.addEventListener('blur', ()=> setTimeout(()=> list.style.display='none', 120));
+      window.addEventListener('scroll', onScroll, true); window.addEventListener('resize', positionList);
+      return { destroy(){ list.remove(); window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', positionList);} };
+    }
+
+    // ======== Linhas da tabela ========
+    function addRow(artigo = '', quantidade = '', unidade = UNITS[0]){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input class="artigo" type="text" placeholder="Começa a escrever…" value="${artigo.replace(/"/g,'&quot;')}"/></td>
+        <td><input class="qtd" type="number" step="0.01" min="0" placeholder="0" value="${quantidade}"/></td>
+        <td><select class="unit">${UNITS.map(u=>`<option ${u===unidade?'selected':''}>${u}</option>`).join('')}</select></td>
+        <td class="actions"><button type="button" class="btn danger del" title="Remover linha">×</button></td>
+      `;
+      tbody.appendChild(tr);
+      const artigoInput = tr.querySelector('.artigo'); const qtdInput = tr.querySelector('.qtd'); const unitSel = tr.querySelector('.unit');
+      makeAutocomplete(artigoInput, ARTICLES);
+      artigoInput.addEventListener('ac-chosen', ()=> { qtdInput.focus(); qtdInput.select(); });
+      qtdInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); unitSel.focus(); } });
+      unitSel.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); const next = addRow(); next.artigo.focus(); } });
+      return { artigo: artigoInput, qtd: qtdInput, unit: unitSel };
+    }
+
+    // ======== PDF (paleta EXUMAS) ========
+    function collectOrder(){
+      const items = []; tbody.querySelectorAll('tr').forEach(tr=>{ const artigo = tr.querySelector('.artigo').value.trim(); const qty = tr.querySelector('.qtd').value.trim(); const unit = tr.querySelector('.unit').value.trim(); if(artigo && qty){ items.push({ name: artigo, qty: qty, unit: unit }); } });
+      return { code: orderNoEl.value.trim() || generateOrderNumber(), deliveryDate: deliveryDateEl.value, notes: descEl.value.trim(), clientName: clientEl.value.trim(), site: sitesEl.value.trim(), status: 'Pendente', items };
+    }
+
+    function generatePdfModern(order){
+      const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit:'pt', format:'a4' }); const pageW = doc.internal.pageSize.getWidth(); const pageH = doc.internal.pageSize.getHeight();
+      const BRAND = { header: [47,69,112], accent: [105,161,197], accent2: [169,212,230], text: [36,44,66], line: [204,214,230], zebra: [242,246,251] };
+      doc.setFillColor(...BRAND.header); doc.rect(0,0,pageW,96,'F');
+      doc.setFillColor(...BRAND.accent); if (doc.triangle) doc.triangle(0,0, 140,0, 0,96,'F'); doc.setFillColor(...BRAND.accent2); if (doc.triangle) doc.triangle(pageW-240,0, pageW,0, pageW,96,'F');
+      try{ doc.setFillColor(255,255,255); doc.circle(32,34,12,'F'); }catch{}
+      doc.setTextColor(...BRAND.header); doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text('EX', 32, 38, { align:'center' });
+      doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text('ENCOMENDA EXUMAS', 56, 38); doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.text(`Nº ${order.code}`, 56, 56);
+      const status = order.status || 'Pendente fornecedor'; const stw = doc.getTextWidth(status) + 18; try{ const g = new doc.GState({opacity:.18}); doc.setGState(g); doc.setFillColor(...BRAND.accent); doc.roundedRect(pageW - stw - 40, 24, stw, 20, 9, 9, 'F'); const g2 = new doc.GState({opacity:1}); doc.setGState(g2);}catch{} doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.text(status, pageW - stw - 31, 38);
+      doc.setFont('helvetica','normal'); doc.setFontSize(10); const chips = [ ['Entrega', (order.deliveryDate? `${(order.deliveryDate||'').split('-').reverse().join('/')}` : '')], order.clientName ? ['Cliente', order.clientName] : null, order.site ? ['Local', order.site] : null ].filter(Boolean); let cx = 56, cy = 74; chips.forEach(([k,v])=>{ const label = `${k}: ${v}`; const w = doc.getTextWidth(label) + 16; try{ const g = new doc.GState({opacity:.20}); doc.setGState(g); doc.setFillColor(255,255,255); doc.roundedRect(cx, cy-12, w, 20, 10, 10, 'F'); const g2 = new doc.GState({opacity:1}); doc.setGState(g2);}catch{} doc.setTextColor(...BRAND.text); doc.text(label, cx+8, cy+3); cx += w + 8; if(cx > pageW - 160){ cx = 56; cy += 24; } }); let cursorY = Math.max(cy + 18, 110);
+      if(order.notes){ const boxW = pageW - 80; const boxX = 40; try{ const gN = new doc.GState({opacity:.06}); doc.setGState(gN); doc.setFillColor(...BRAND.accent); doc.roundedRect(boxX, cursorY, boxW, 50, 12, 12, 'F'); const gN2 = new doc.GState({opacity:1}); doc.setGState(gN2);}catch{} doc.setFont('helvetica','bold'); doc.setTextColor(...BRAND.accent); doc.text('Notas', boxX+12, cursorY+16); doc.setFont('helvetica','normal'); doc.setTextColor(...BRAND.text); const lines = doc.splitTextToSize(order.notes, boxW - 24); cursorY += 28; doc.text(lines, boxX+12, cursorY); cursorY += (lines.length * 12) + 14; }
+      const body = order.items.map((i,idx)=>[idx+1, i.name, i.qty, i.unit]); doc.autoTable({ head: [['#','Artigo','Quantidade','Unidade']], body, startY: cursorY, margin: { left:40, right:40 }, theme: 'grid', styles: { font: 'helvetica', fontSize: 11, cellPadding: 6, lineColor: BRAND.line, lineWidth: 0.6, textColor: BRAND.text }, headStyles: { fillColor: BRAND.header, textColor: 255, halign: 'left' }, alternateRowStyles: { fillColor: BRAND.zebra }, columnStyles: { 0: { cellWidth: 26, halign:'right' }, 1: { cellWidth: pageW - 80 - 26 - 120 - 90 }, 2: { cellWidth: 120, halign:'right' }, 3: { cellWidth: 90, halign:'center' } }, didDrawPage: (data) => { doc.setDrawColor(...BRAND.line); doc.setLineWidth(0.6); doc.line(40, 96, pageW-40, 96); const str = `Página ${doc.internal.getCurrentPageInfo().pageNumber}`; doc.setFontSize(10); doc.setTextColor(120); doc.text(str, pageW - 40, pageH - 24, { align: 'right' }); doc.text('Gerado por — EXUMAS', 40, pageH - 24); } });
+      const sumY = (doc.lastAutoTable?.finalY || cursorY) + 18; const sums = order.items.reduce((acc,i)=>{ const u = i.unit || 'Unidade'; acc[u] = (acc[u]||0) + Number(i.qty||0); return acc; },{}); const entries = Object.entries(sums); if(entries.length){ doc.setFont('helvetica','bold'); doc.setTextColor(...BRAND.text); doc.text('Resumo', 40, sumY); let x = 40, y = sumY + 8; const chipH = 20; entries.forEach(([u,val])=>{ const label = `${val} ${u}`; const w = doc.getTextWidth(label) + 18; try{ const g = new doc.GState({opacity:.14}); doc.setGState(g);}catch{} doc.setFillColor(...BRAND.accent); doc.roundedRect(x, y, w, chipH, 10, 10, 'F'); try{ const g2 = new doc.GState({opacity:1}); doc.setGState(g2);}catch{} doc.setTextColor(...BRAND.accent); doc.text(label, x+9, y+13); x += w + 8; if(x > pageW - 160){ x = 40; y += chipH + 8; } }); }
+      let finalY = doc.lastAutoTable?.finalY || cursorY; let cursor2 = (entries && entries.length) ? (sumY + 36) : (finalY + 12);
+      const minSpace = 120; if(pageH - cursor2 < minSpace){ doc.addPage(); cursor2 = 80; }
+      doc.setTextColor(...BRAND.text); doc.setFont('helvetica','bold'); doc.text('Assinaturas', 40, cursor2); cursor2 += 16; const cols = [ ['Recebido por','Data'], ['Carregado por','Data'] ]; let colX = 40; cols.forEach(col=>{ doc.setDrawColor(...BRAND.line); doc.setLineWidth(0.8); doc.line(colX, cursor2+30, colX+180, cursor2+30); doc.setFont('helvetica','normal'); doc.text(col[0], colX, cursor2+12); doc.text(col[1], colX+130, cursor2+12); colX += 200; });
+      const fileDate = (order.deliveryDate||todayISO()).replaceAll('-',''); const filename = `ENCOMENDA_${order.code}_${fileDate}.pdf`; doc.save(filename);
+    }
+
+    // ======== Eventos UI ========
+    function boot(){
+      orderNoEl.value = generateOrderNumber(); deliveryDateEl.value = todayISO();
+      // seed datalists
+      syncClientsToDatalist(); ensureSitesSeed();
+      const first = addRow(); first.artigo.focus();
+    }
+
+    addRowBtn.addEventListener('click', () => { const next = addRow(); next.artigo.focus(); });
+
+    tbody.addEventListener('click', (e) => {
+      if (e.target && e.target.classList.contains('del')){
+        const tr = e.target.closest('tr'); tr.remove(); if (!tbody.querySelector('tr')) addRow();
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      if (!confirm('Limpar o formulário?')) return; orderNoEl.value = generateOrderNumber(); deliveryDateEl.value = todayISO(); descEl.value = ''; clientEl.value = ''; sitesEl.value = ''; tbody.innerHTML = ''; const first = addRow(); first.artigo.focus();
+    });
+
+    document.addEventListener('keydown', (e)=>{ if((e.ctrlKey || e.metaKey) && e.key==='Enter'){ e.preventDefault(); form.requestSubmit(); } });
+
+    form.addEventListener('submit', (e)=>{
+      e.preventDefault(); if(!deliveryDateEl.value){ alert('Indica a data de entrega.'); return; } const order = collectOrder(); if(!order.items.length){ alert('Adiciona pelo menos um artigo com quantidade.'); return; } generatePdfModern(order); try{ if(order.clientName) localStorage.setItem('lastClient', order.clientName); if(order.site) localStorage.setItem('lastSite', order.site); }catch{}
+    });
+
+    // Modal events
+    clientsBtn.addEventListener('click', openClientsModal);
+    cmClose.addEventListener('click', closeClientsModal);
+    cmSearch.addEventListener('input', renderClientList);
+    cmNew.addEventListener('click', newClient);
+    cmSave.addEventListener('click', saveClient);
+    cmUse.addEventListener('click', applyToForm);
+
+    // arrancar
+    boot();
+  </script>
+</body>
+</html>
